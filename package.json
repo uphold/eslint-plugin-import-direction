@@ -1,0 +1,58 @@
+{
+  "name": "@uphold/eslint-plugin-import-direction",
+  "version": "0.0.0",
+  "description": "An ESLint plugin that enforces import direction: ancestor imports use a root alias, sibling and descendant imports stay relative.",
+  "keywords": [
+    "eslint",
+    "eslintplugin",
+    "eslint-plugin",
+    "import",
+    "alias",
+    "relative",
+    "subpath-imports",
+    "direction"
+  ],
+  "author": "Uphold",
+  "license": "MIT",
+  "type": "module",
+  "main": "src/index.js",
+  "types": "./src/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.d.ts",
+      "default": "./src/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "src",
+    "!src/**/*.test.js"
+  ],
+  "repository": "github:uphold/eslint-plugin-import-direction",
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "docs": "eslint-doc-generator",
+    "docs:check": "eslint-doc-generator --check",
+    "lint": "eslint",
+    "release": "release-it",
+    "test": "node --test",
+    "types:check": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@uphold/github-changelog-generator": "^4.0.2",
+    "eslint": "^10.0.0",
+    "eslint-config-uphold": "https://github.com/uphold/eslint-config-uphold#enhancement/refactor-project",
+    "eslint-doc-generator": "^2.4.0",
+    "release-it": "^20.2.0",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.59.4"
+  },
+  "engines": {
+    "node": ">= 22"
+  },
+  "peerDependencies": {
+    "eslint": ">=9"
+  }
+}

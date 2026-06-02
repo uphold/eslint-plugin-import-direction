@@ -11,35 +11,72 @@ import assert from 'node:assert/strict';
  */
 
 describe('resolveRequiredForm()', () => {
-  const config = { base: '/repo', prefix: '#/' };
+  const config = { aliasPrefix: '#/', rootDir: '/repo' };
 
-  it('should require the alias for a parent import that resolves inside the base', () => {
-    assert.equal(resolveRequiredForm('../x.ts', '/repo/src/a', config), '#/src/x.ts');
-    assert.equal(resolveRequiredForm('../../config/types.ts', '/repo/src/a', config), '#/config/types.ts');
+  it('should require the alias for a parent import that resolves inside the root', () => {
+    assert.deepEqual(resolveRequiredForm('../x.ts', '/repo/src/a', config), { specifier: '#/src/x.ts', type: 'alias' });
+    assert.deepEqual(resolveRequiredForm('../../config/types.ts', '/repo/src/a', config), {
+      specifier: '#/config/types.ts',
+      type: 'alias'
+    });
   });
 
-  it('should return null for a parent import that resolves outside the base', () => {
+  it('should return null for a parent import that resolves outside the root', () => {
     assert.equal(resolveRequiredForm('../outside.ts', '/repo', config), null);
   });
 
   it('should require a relative specifier for an aliased import in the same subtree', () => {
-    assert.equal(resolveRequiredForm('#/src/a/x.ts', '/repo/src/a', config), './x.ts');
-    assert.equal(resolveRequiredForm('#/src/a/sub/x.ts', '/repo/src/a', config), './sub/x.ts');
+    assert.deepEqual(resolveRequiredForm('#/src/a/x.ts', '/repo/src/a', config), {
+      specifier: './x.ts',
+      type: 'relative'
+    });
+    assert.deepEqual(resolveRequiredForm('#/src/a/sub/x.ts', '/repo/src/a', config), {
+      specifier: './sub/x.ts',
+      type: 'relative'
+    });
   });
 
-  it('should keep an aliased import that points to an ancestor inside the base', () => {
-    assert.equal(resolveRequiredForm('#/config/types.ts', '/repo/src/a', config), '#/config/types.ts');
+  it('should keep an aliased import that points to an ancestor inside the root', () => {
+    assert.deepEqual(resolveRequiredForm('#/config/types.ts', '/repo/src/a', config), {
+      specifier: '#/config/types.ts',
+      type: 'alias'
+    });
   });
 
   it('should keep a relative import that stays within the subtree', () => {
-    assert.equal(resolveRequiredForm('./x.ts', '/repo/src/a', config), './x.ts');
-    assert.equal(resolveRequiredForm('./sub/x.ts', '/repo/src/a', config), './sub/x.ts');
+    assert.deepEqual(resolveRequiredForm('./x.ts', '/repo/src/a', config), { specifier: './x.ts', type: 'relative' });
+    assert.deepEqual(resolveRequiredForm('./sub/x.ts', '/repo/src/a', config), {
+      specifier: './sub/x.ts',
+      type: 'relative'
+    });
   });
 
-  it('should resolve aliases mapped to a subdirectory base', () => {
-    const subConfig = { base: '/repo/src', prefix: '#/' };
+  it('should resolve aliases mapped to a subdirectory root', () => {
+    const subConfig = { aliasPrefix: '#/', rootDir: '/repo/src' };
 
-    assert.equal(resolveRequiredForm('../x.ts', '/repo/src/a', subConfig), '#/x.ts');
+    assert.deepEqual(resolveRequiredForm('../x.ts', '/repo/src/a', subConfig), { specifier: '#/x.ts', type: 'alias' });
+  });
+
+  it('should require a relative parent specifier within a module root', () => {
+    const moduleConfig = { aliasPrefix: '#/', moduleRootDir: '/repo/src/repositories', rootDir: '/repo' };
+
+    assert.deepEqual(
+      resolveRequiredForm('#/src/repositories/utils/db.ts', '/repo/src/repositories/processes', moduleConfig),
+      { specifier: '../utils/db.ts', type: 'relative' }
+    );
+    assert.deepEqual(resolveRequiredForm('../utils/db.ts', '/repo/src/repositories/processes', moduleConfig), {
+      specifier: '../utils/db.ts',
+      type: 'relative'
+    });
+  });
+
+  it('should require the alias for an import that leaves the module root', () => {
+    const moduleConfig = { aliasPrefix: '#/', moduleRootDir: '/repo/src/repositories', rootDir: '/repo' };
+
+    assert.deepEqual(resolveRequiredForm('../../foo.ts', '/repo/src/repositories/processes', moduleConfig), {
+      specifier: '#/src/foo.ts',
+      type: 'alias'
+    });
   });
 
   it('should return null for bare specifiers', () => {

@@ -2,11 +2,12 @@
  * Module dependencies.
  */
 
+import { resolveModuleRoot } from './module-root.js';
 import fs from 'node:fs';
 import path from 'node:path';
 
 /**
- * Cache of resolved alias configurations, keyed by directory.
+ * Cache of detected alias configurations, keyed by directory.
  */
 
 const configCache = new Map();
@@ -18,7 +19,7 @@ const configCache = new Map();
  * (e.g. `"#/*": "./*"`).
  * @param {object} imports - The `imports` field of a `package.json`.
  * @param {string} packageDir - The directory containing the `package.json`.
- * @returns {{ base: string, prefix: string } | null} The alias config, or null when none exists.
+ * @returns {{ aliasPrefix: string, rootDir: string } | null} The alias config, or null when none exists.
  */
 
 function parseImports(imports, packageDir) {
@@ -47,41 +48,24 @@ function parseImports(imports, packageDir) {
       continue;
     }
 
-    const prefix = key.slice(0, -1);
+    const aliasPrefix = key.slice(0, -1);
     const targetDir = target.slice(0, -1);
 
-    return { base: path.resolve(packageDir, targetDir), prefix };
+    return { aliasPrefix, rootDir: path.resolve(packageDir, targetDir) };
   }
 
   return null;
 }
 
 /**
- * Discover the alias configuration that governs a file.
- *
- * Walks up from the file to the nearest `package.json` and reads its `imports` field. The
- * explicit `prefix`/`rootDir` options override auto-detection; when only one is provided,
- * the missing side is filled from the detected config.
+ * Auto-detect the alias configuration for a file from the nearest `package.json`,
+ * caching every visited directory. The result depends only on the directory tree, never
+ * on rule options, which is what makes the shared cache safe.
  * @param {string} filename - The absolute path of the file being linted.
- * @param {{ prefix?: string, rootDir?: string }} [options] - Rule options.
- * @returns {{ base: string, prefix: string } | null} The alias config, or null when none is configured.
+ * @returns {{ aliasPrefix: string, rootDir: string } | null} The detected config, or null.
  */
 
-export function resolveAliasConfig(filename, options = {}) {
-  let normalizedPrefix = null;
-
-  if (options.prefix) {
-    normalizedPrefix = options.prefix.endsWith('/') ? options.prefix : `${options.prefix}/`;
-  }
-
-  const overrideBase = options.rootDir ? path.resolve(options.rootDir) : null;
-
-  // Fully explicit override; skip auto-detection entirely.
-  if (normalizedPrefix && overrideBase) {
-    return { base: overrideBase, prefix: normalizedPrefix };
-  }
-
-  // Auto-detect from the nearest package.json, caching every visited directory.
+function detectPackageConfig(filename) {
   let detected = null;
   const visited = [];
 
@@ -117,18 +101,48 @@ export function resolveAliasConfig(filename, options = {}) {
     configCache.set(dir, detected);
   }
 
-  // No overrides: use detection as-is.
-  if (!normalizedPrefix && !overrideBase) {
-    return detected;
+  return detected;
+}
+
+/**
+ * Discover the import-direction context that governs a file.
+ *
+ * The alias root and prefix are auto-detected from the nearest `package.json` `imports`
+ * field; the explicit `aliasPrefix`/`rootDir` options override that detection, and when only
+ * one is provided the missing side is filled from detection. The module root (the deepest
+ * ancestor matching `moduleRoots`) is resolved per file and never cached, since it depends
+ * on the `moduleRoots` option.
+ * @param {string} filename - The absolute path of the file being linted.
+ * @param {{ aliasPrefix?: string, moduleRoots?: string[], rootDir?: string }} [options] - Rule options.
+ * @returns {{ aliasPrefix: string, moduleRootDir: string | null, rootDir: string } | null} The
+ *   resolution context, or null when no alias is configured.
+ */
+
+export function resolveAliasConfig(filename, options = {}) {
+  let aliasPrefix = null;
+  let rootDir = null;
+
+  if (options.aliasPrefix) {
+    aliasPrefix = options.aliasPrefix.endsWith('/') ? options.aliasPrefix : `${options.aliasPrefix}/`;
   }
 
-  // Partial override: fill the missing side from detection.
-  const base = overrideBase ?? detected?.base ?? null;
-  const prefix = normalizedPrefix ?? detected?.prefix ?? null;
+  if (options.rootDir) {
+    rootDir = path.resolve(options.rootDir);
+  }
 
-  if (!base || !prefix) {
+  // Auto-detect from package.json, unless both sides are explicitly overridden.
+  if (!aliasPrefix || !rootDir) {
+    const detected = detectPackageConfig(filename);
+
+    aliasPrefix ??= detected?.aliasPrefix;
+    rootDir ??= detected?.rootDir;
+  }
+
+  if (!aliasPrefix || !rootDir) {
     return null;
   }
 
-  return { base, prefix };
+  const moduleRootDir = resolveModuleRoot(path.dirname(filename), rootDir, options.moduleRoots ?? []);
+
+  return { aliasPrefix, moduleRootDir, rootDir };
 }

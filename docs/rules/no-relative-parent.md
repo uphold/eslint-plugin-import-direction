@@ -28,13 +28,28 @@ import type { Config } from '#/config/types.ts';
 const db = await import('#/src/shared/clients/kysely/index.ts');
 ```
 
+### Module roots
+
+When `moduleRoots` marks a directory as a module root, relative parent imports that stay
+within that module root are allowed (file `src/repositories/processes/create.ts`, option
+`{ moduleRoots: ['src/repositories'] }`):
+
+```js
+// ✅ both files live under the src/repositories module root
+import { getDb } from '../utils/db-options.ts';
+
+// ❌ this import leaves the module root, so the alias is still required
+import type { Config } from '../../config/types.ts';
+```
+
 ## Options
 
 <!-- begin auto-generated rule options list -->
 
-| Name      | Description                                                                                            | Type   |
-| :-------- | :----------------------------------------------------------------------------------------------------- | :----- |
-| `prefix`  | The import alias prefix (e.g. "#/"). Overrides auto-detection from the nearest package.json "imports". | String |
-| `rootDir` | Absolute path the alias prefix maps to. Overrides auto-detection.                                      | String |
+| Name          | Description                                                                                                                                                                                          | Type     |
+| :------------ | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------- |
+| `aliasPrefix` | The import alias prefix (e.g. "#/"). Overrides auto-detection from the nearest package.json "imports".                                                                                               | String   |
+| `moduleRoots` | Glob patterns (relative to the alias root, in posix form) marking module-root directories. Relative parent imports that stay within the same module root are allowed instead of requiring the alias. | String[] |
+| `rootDir`     | Absolute path the alias prefix maps to. Overrides auto-detection.                                                                                                                                    | String   |
 
 <!-- end auto-generated rule options list -->

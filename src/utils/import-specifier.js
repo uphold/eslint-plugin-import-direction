@@ -2,6 +2,7 @@
  * Module dependencies.
  */
 
+import { isWithin } from './module-root.js';
 import path from 'node:path';
 
 /**
@@ -18,7 +19,7 @@ function toPosix(value) {
  * Resolve the absolute target path of an import specifier.
  * @param {string} spec - The import specifier.
  * @param {string} fileDir - The directory of the importing file.
- * @param {{ base: string, prefix: string } | null} config - The alias config.
+ * @param {{ aliasPrefix: string, rootDir: string } | null} config - The resolution context.
  * @returns {string | null} The resolved absolute path, or null for bare specifiers.
  */
 
@@ -27,52 +28,25 @@ function resolveTarget(spec, fileDir, config) {
     return path.resolve(fileDir, spec);
   }
 
-  if (config && spec.startsWith(config.prefix)) {
-    return path.join(config.base, spec.slice(config.prefix.length));
+  if (config && spec.startsWith(config.aliasPrefix)) {
+    return path.join(config.rootDir, spec.slice(config.aliasPrefix.length));
   }
 
   return null;
 }
 
 /**
- * Compute the canonical specifier for a resolved target.
+ * Resolve the canonical specifier an import should use.
  *
- * Targets inside the importing file's directory subtree must be relative; targets above
- * it must use the alias. Returns null when an ancestor target falls outside the alias
- * base (no alias can represent it).
- * @param {string} target - The resolved absolute target path.
- * @param {string} fileDir - The directory of the importing file.
- * @param {{ base: string, prefix: string } | null} config - The alias config.
- * @returns {string | null} The canonical specifier, or null when none can be formed.
- */
-
-function requiredForm(target, fileDir, config) {
-  const relative = path.relative(fileDir, target);
-
-  if (relative !== '' && !relative.startsWith('..') && !path.isAbsolute(relative)) {
-    return `./${toPosix(relative)}`;
-  }
-
-  if (!config) {
-    return null;
-  }
-
-  const fromBase = path.relative(config.base, target);
-
-  if (fromBase.startsWith('..') || path.isAbsolute(fromBase)) {
-    return null;
-  }
-
-  return `${config.prefix}${toPosix(fromBase)}`;
-}
-
-/**
- * Resolve the canonical specifier an import should use, composing target resolution with
- * the required-form computation.
+ * Targets inside the relative zone — the file's module root when one applies, otherwise
+ * the file's own directory subtree — must be relative (possibly `../`); targets above it
+ * must use the alias. Returns null for bare specifiers and when an ancestor target falls
+ * outside the alias root (no alias can represent it).
  * @param {string} spec - The import specifier.
  * @param {string} fileDir - The directory of the importing file.
- * @param {{ base: string, prefix: string } | null} config - The alias config.
- * @returns {string | null} The canonical specifier, or null when none can be formed.
+ * @param {{ aliasPrefix: string, moduleRootDir?: string | null, rootDir: string } | null} config - The resolution context.
+ * @returns {{ specifier: string, type: 'alias' | 'relative' } | null} The canonical specifier and
+ *   its kind, or null when none can be formed.
  */
 
 export function resolveRequiredForm(spec, fileDir, config) {
@@ -82,7 +56,25 @@ export function resolveRequiredForm(spec, fileDir, config) {
     return null;
   }
 
-  return requiredForm(target, fileDir, config);
+  const boundary = config?.moduleRootDir ?? fileDir;
+
+  if (isWithin(boundary, target)) {
+    const relative = toPosix(path.relative(fileDir, target));
+
+    return { specifier: relative.startsWith('../') ? relative : `./${relative}`, type: 'relative' };
+  }
+
+  if (!config) {
+    return null;
+  }
+
+  const fromRoot = path.relative(config.rootDir, target);
+
+  if (fromRoot.startsWith('..') || path.isAbsolute(fromRoot)) {
+    return null;
+  }
+
+  return { specifier: `${config.aliasPrefix}${toPosix(fromRoot)}`, type: 'alias' };
 }
 
 /**

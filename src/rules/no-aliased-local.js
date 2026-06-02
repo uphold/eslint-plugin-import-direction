@@ -33,19 +33,19 @@ const noAliasedLocal = {
     return createSpecifierVisitor(source => {
       const spec = source.value;
 
-      if (!spec.startsWith(config.prefix)) {
+      if (!spec.startsWith(config.aliasPrefix)) {
         return;
       }
 
-      const required = resolveRequiredForm(spec, fileDir, config);
+      const requiredForm = resolveRequiredForm(spec, fileDir, config);
 
-      if (!required || !required.startsWith('./')) {
+      if (!requiredForm || requiredForm.type !== 'relative') {
         return;
       }
 
       context.report({
-        data: { required, spec },
-        fix: fixer => fixer.replaceTextRange([source.range[0] + 1, source.range[1] - 1], required),
+        data: { required: requiredForm.specifier, spec },
+        fix: fixer => fixer.replaceTextRange([source.range[0] + 1, source.range[1] - 1], requiredForm.specifier),
         messageId: 'useRelative',
         node: source
       });
@@ -64,10 +64,16 @@ const noAliasedLocal = {
       {
         additionalProperties: false,
         properties: {
-          prefix: {
+          aliasPrefix: {
             description:
               'The import alias prefix (e.g. "#/"). Overrides auto-detection from the nearest package.json "imports".',
             type: 'string'
+          },
+          moduleRoots: {
+            description:
+              'Glob patterns (relative to the alias root, in posix form) marking module-root directories. Aliased imports to a file within the same module root are rewritten to a relative import.',
+            items: { type: 'string' },
+            type: 'array'
           },
           rootDir: {
             description: 'Absolute path the alias prefix maps to. Overrides auto-detection.',

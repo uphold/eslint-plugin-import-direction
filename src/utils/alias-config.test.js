@@ -30,53 +30,77 @@ function createPackage(imports) {
 
 describe('resolveAliasConfig()', () => {
   it('should use explicit options and normalize the prefix', () => {
-    assert.deepEqual(resolveAliasConfig('/anywhere/file.js', { prefix: '#', rootDir: '/repo' }), {
-      base: path.resolve('/repo'),
-      prefix: '#/'
+    assert.deepEqual(resolveAliasConfig('/anywhere/file.js', { aliasPrefix: '#', rootDir: '/repo' }), {
+      aliasPrefix: '#/',
+      moduleRootDir: null,
+      rootDir: path.resolve('/repo')
     });
   });
 
   it('should keep an already-slashed prefix', () => {
-    assert.deepEqual(resolveAliasConfig('/anywhere/file.js', { prefix: '#/', rootDir: '/repo' }), {
-      base: path.resolve('/repo'),
-      prefix: '#/'
+    assert.deepEqual(resolveAliasConfig('/anywhere/file.js', { aliasPrefix: '#/', rootDir: '/repo' }), {
+      aliasPrefix: '#/',
+      moduleRootDir: null,
+      rootDir: path.resolve('/repo')
     });
   });
 
   it('should discover a root-anchored alias from package.json imports', () => {
     const dir = createPackage({ '#/*': './*' });
 
-    assert.deepEqual(resolveAliasConfig(path.join(dir, 'src', 'a', 'file.js')), { base: dir, prefix: '#/' });
+    assert.deepEqual(resolveAliasConfig(path.join(dir, 'src', 'a', 'file.js')), {
+      aliasPrefix: '#/',
+      moduleRootDir: null,
+      rootDir: dir
+    });
   });
 
   it('should discover an alias from a conditional imports value', () => {
     const dir = createPackage({ '#/*': { default: './*' } });
 
-    assert.deepEqual(resolveAliasConfig(path.join(dir, 'src', 'a', 'file.js')), { base: dir, prefix: '#/' });
+    assert.deepEqual(resolveAliasConfig(path.join(dir, 'src', 'a', 'file.js')), {
+      aliasPrefix: '#/',
+      moduleRootDir: null,
+      rootDir: dir
+    });
   });
 
   it('should fill the prefix from detection when only rootDir is provided', () => {
     const dir = createPackage({ '#/*': './*' });
 
     assert.deepEqual(resolveAliasConfig(path.join(dir, 'src', 'a', 'file.js'), { rootDir: '/repo' }), {
-      base: path.resolve('/repo'),
-      prefix: '#/'
+      aliasPrefix: '#/',
+      moduleRootDir: null,
+      rootDir: path.resolve('/repo')
     });
   });
 
-  it('should fill the base from detection when only prefix is provided', () => {
+  it('should fill the root from detection when only prefix is provided', () => {
     const dir = createPackage({ '#/*': './*' });
 
-    assert.deepEqual(resolveAliasConfig(path.join(dir, 'src', 'a', 'file.js'), { prefix: '~' }), {
-      base: dir,
-      prefix: '~/'
+    assert.deepEqual(resolveAliasConfig(path.join(dir, 'src', 'a', 'file.js'), { aliasPrefix: '~' }), {
+      aliasPrefix: '~/',
+      moduleRootDir: null,
+      rootDir: dir
+    });
+  });
+
+  it('should resolve the module root from moduleRoots', () => {
+    const dir = createPackage({ '#/*': './*' });
+
+    fs.mkdirSync(path.join(dir, 'src', 'a', 'inner'), { recursive: true });
+
+    assert.deepEqual(resolveAliasConfig(path.join(dir, 'src', 'a', 'inner', 'file.js'), { moduleRoots: ['src/a'] }), {
+      aliasPrefix: '#/',
+      moduleRootDir: path.join(dir, 'src', 'a'),
+      rootDir: dir
     });
   });
 
   it('should return null for a partial override with no detectable counterpart', () => {
     const dir = createPackage(undefined);
 
-    assert.equal(resolveAliasConfig(path.join(dir, 'src', 'a', 'file.js'), { prefix: '~' }), null);
+    assert.equal(resolveAliasConfig(path.join(dir, 'src', 'a', 'file.js'), { aliasPrefix: '~' }), null);
   });
 
   it('should return a cached config for sibling files in the same subtree', () => {
@@ -87,7 +111,7 @@ describe('resolveAliasConfig()', () => {
     const first = resolveAliasConfig(path.join(dir, 'src', 'a', 'file.js'));
     const second = resolveAliasConfig(path.join(dir, 'src', 'b', 'other.js'));
 
-    assert.deepEqual(first, { base: dir, prefix: '#/' });
+    assert.deepEqual(first, { aliasPrefix: '#/', moduleRootDir: null, rootDir: dir });
     assert.deepEqual(second, first);
   });
 
@@ -95,8 +119,9 @@ describe('resolveAliasConfig()', () => {
     const dir = createPackage({ '#/*': './src/*' });
 
     assert.deepEqual(resolveAliasConfig(path.join(dir, 'src', 'a', 'file.js')), {
-      base: path.join(dir, 'src'),
-      prefix: '#/'
+      aliasPrefix: '#/',
+      moduleRootDir: null,
+      rootDir: path.join(dir, 'src')
     });
   });
 

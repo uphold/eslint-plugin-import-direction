@@ -6,7 +6,13 @@ import type { ESLint, Linter, Rule } from 'eslint';
  */
 export interface Options {
   /** The import alias prefix (e.g. `"#/"`). */
-  prefix?: string;
+  aliasPrefix?: string;
+  /**
+   * Glob patterns (relative to the alias root, in posix form) marking module-root
+   * directories. Relative imports that stay within the same module root are allowed
+   * instead of requiring the alias.
+   */
+  moduleRoots?: string[];
   /** Absolute path the alias prefix maps to. */
   rootDir?: string;
 }

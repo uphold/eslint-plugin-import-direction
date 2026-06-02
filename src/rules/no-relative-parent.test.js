@@ -10,7 +10,8 @@ import tseslint from 'typescript-eslint';
  * Test setup.
  */
 
-const options = [{ prefix: '#/', rootDir: '/repo' }];
+const options = [{ aliasPrefix: '#/', rootDir: '/repo' }];
+const moduleOptions = [{ aliasPrefix: '#/', moduleRoots: ['src/repositories'], rootDir: '/repo' }];
 const ruleTester = new RuleTester({
   languageOptions: {
     ecmaVersion: 'latest',
@@ -73,6 +74,13 @@ ruleTester.run('no-relative-parent', rule, {
       filename: '/repo/a.ts',
       options,
       output: null
+    },
+    {
+      code: `import x from '../../shared/x.ts';`,
+      errors: [{ messageId: 'useAlias' }],
+      filename: '/repo/src/repositories/processes/create.ts',
+      options: moduleOptions,
+      output: `import x from '#/src/shared/x.ts';`
     }
   ],
   valid: [
@@ -81,6 +89,11 @@ ruleTester.run('no-relative-parent', rule, {
     { code: `import x from '#/config/types.ts';`, filename: '/repo/src/a/b.ts', options },
     { code: `import x from 'lodash';`, filename: '/repo/src/a/b.ts', options },
     { code: `const p = import('node:fs');`, filename: '/repo/src/a/b.ts', options },
-    { code: `import x from '../foo.ts';`, filename: '/repo/src/a/b.ts' }
+    { code: `import x from '../foo.ts';`, filename: '/repo/src/a/b.ts' },
+    {
+      code: `import x from '../utils/db-options.ts';`,
+      filename: '/repo/src/repositories/processes/create.ts',
+      options: moduleOptions
+    }
   ]
 });

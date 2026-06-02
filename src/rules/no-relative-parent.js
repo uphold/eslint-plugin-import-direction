@@ -37,21 +37,23 @@ const noRelativeParent = {
         return;
       }
 
-      const required = resolveRequiredForm(spec, fileDir, config);
+      const requiredForm = resolveRequiredForm(spec, fileDir, config);
 
-      if (!required) {
+      if (!requiredForm) {
         context.report({ data: { spec }, messageId: 'noAlias', node: source });
 
         return;
       }
 
-      if (required === spec) {
+      // A relative required form means the parent import is allowed to stay relative
+      // (e.g. it stays within the file's module root).
+      if (requiredForm.type === 'relative') {
         return;
       }
 
       context.report({
-        data: { required, spec },
-        fix: fixer => fixer.replaceTextRange([source.range[0] + 1, source.range[1] - 1], required),
+        data: { required: requiredForm.specifier, spec },
+        fix: fixer => fixer.replaceTextRange([source.range[0] + 1, source.range[1] - 1], requiredForm.specifier),
         messageId: 'useAlias',
         node: source
       });
@@ -70,10 +72,16 @@ const noRelativeParent = {
       {
         additionalProperties: false,
         properties: {
-          prefix: {
+          aliasPrefix: {
             description:
               'The import alias prefix (e.g. "#/"). Overrides auto-detection from the nearest package.json "imports".',
             type: 'string'
+          },
+          moduleRoots: {
+            description:
+              'Glob patterns (relative to the alias root, in posix form) marking module-root directories. Relative parent imports that stay within the same module root are allowed instead of requiring the alias.',
+            items: { type: 'string' },
+            type: 'array'
           },
           rootDir: {
             description: 'Absolute path the alias prefix maps to. Overrides auto-detection.',

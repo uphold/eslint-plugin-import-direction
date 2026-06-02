@@ -29,13 +29,32 @@ export { ConflictError } from './conflict.ts';
 import type { Config } from '#/config/types.ts';
 ```
 
+### Module roots
+
+When `moduleRoots` marks a directory as a module root, an alias that points at a file
+within the same module root is rewritten to a relative import — even when it sits in a
+sibling directory rather than a subtree (file `src/repositories/processes/create.ts`,
+option `{ moduleRoots: ['src/repositories'] }`):
+
+```js
+// ❌ resolves within the src/repositories module root
+import { getDb } from '#/src/repositories/utils/db-options.ts';
+
+// ✅ rewritten to the relative form
+import { getDb } from '../utils/db-options.ts';
+
+// An alias pointing outside the module root is still fine.
+import type { Config } from '#/config/types.ts';
+```
+
 ## Options
 
 <!-- begin auto-generated rule options list -->
 
-| Name      | Description                                                                                            | Type   |
-| :-------- | :----------------------------------------------------------------------------------------------------- | :----- |
-| `prefix`  | The import alias prefix (e.g. "#/"). Overrides auto-detection from the nearest package.json "imports". | String |
-| `rootDir` | Absolute path the alias prefix maps to. Overrides auto-detection.                                      | String |
+| Name          | Description                                                                                                                                                                          | Type     |
+| :------------ | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------- |
+| `aliasPrefix` | The import alias prefix (e.g. "#/"). Overrides auto-detection from the nearest package.json "imports".                                                                               | String   |
+| `moduleRoots` | Glob patterns (relative to the alias root, in posix form) marking module-root directories. Aliased imports to a file within the same module root are rewritten to a relative import. | String[] |
+| `rootDir`     | Absolute path the alias prefix maps to. Overrides auto-detection.                                                                                                                    | String   |
 
 <!-- end auto-generated rule options list -->

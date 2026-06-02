@@ -1,6 +1,6 @@
 {
   "name": "@uphold/eslint-plugin-import-direction",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "An ESLint plugin that enforces import direction: ancestor imports use a root alias, sibling and descendant imports stay relative.",
   "keywords": [
     "eslint",

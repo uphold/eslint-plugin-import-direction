@@ -45,7 +45,7 @@
     "eslint": "^10.0.0",
     "eslint-config-uphold": "https://github.com/uphold/eslint-config-uphold#enhancement/refactor-project",
     "eslint-doc-generator": "^2.4.0",
-    "release-it": "^20.2.0",
+    "release-it": "^21.0.1",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.59.4"
   },
